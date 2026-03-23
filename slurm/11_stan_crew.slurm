@@ -21,7 +21,7 @@ export OPENBLAS_NUM_THREADS=1
 cd "$SLURM_SUBMIT_DIR"
 
 export N_BATCHES=8
-export N_REPS_PER_BATCH=3
+export N_REPS_PER_BATCH=25
 export N_WORKERS="${SLURM_CPUS_PER_TASK:-8}"
 
 echo "Strategy: targets + crew + Stan (8 workers, 1 chain each)"

@@ -21,7 +21,7 @@ export OPENBLAS_NUM_THREADS=1
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p results
 
-N_REPS=24
+N_REPS=200
 
 echo "Strategy: sequential Stan fits (1 chain, 1 core)"
 echo "Start: $(date)"
