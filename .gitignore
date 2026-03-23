@@ -1,0 +1,6 @@
+results/
+_targets*/
+.claude/
+.Rhistory
+.RData
+*.Rout
