@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=00:30:00
 #SBATCH --mem=4G
-#SBATCH --array=1-20
+#SBATCH --array=1-10
 
 set -euo pipefail
 
@@ -20,8 +20,8 @@ export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p results
 
-# 200 total reps split across 20 array tasks = 10 reps per task
-REPS_PER_TASK=10
+# 50 total reps split across 10 array tasks = 5 reps per task
+REPS_PER_TASK=5
 
 Rscript --no-save --no-restore -e "
 source('R/sim_task.R')

@@ -23,7 +23,7 @@ export OPENBLAS_NUM_THREADS=1
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p results
 
-N_REPS=200
+N_REPS=50
 
 Rscript --no-save --no-restore -e "
 source('R/sim_task.R')

@@ -23,8 +23,8 @@ export OPENBLAS_NUM_THREADS=1
 cd "$SLURM_SUBMIT_DIR"
 
 # Control batching and workers — derive from SLURM allocation
-export N_BATCHES=20
-export N_REPS_PER_BATCH=10
+export N_BATCHES=10
+export N_REPS_PER_BATCH=5
 N_WORKERS="${SLURM_CPUS_PER_TASK:-4}"
 
 echo "Strategy: targets + future backend (tar_make_future)"

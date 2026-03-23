@@ -19,8 +19,8 @@ export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
 cd "$SLURM_SUBMIT_DIR"
 
 # Control batching: 20 batches x 10 reps = 200 total
-export N_BATCHES=20
-export N_REPS_PER_BATCH=10
+export N_BATCHES=10
+export N_REPS_PER_BATCH=5
 
 echo "Strategy: targets with tar_rep (sequential, no crew)"
 echo "Start: $(date)"

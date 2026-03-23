@@ -23,6 +23,10 @@ Systematic comparison of parallel R strategies on Oxford's ARC HPC cluster. Moti
 3. **targets progress goes to stderr** when using `callr_function = NULL`
 4. **`source ~/.bash_profile` hangs** on compute/interactive nodes — always set env vars explicitly
 5. **Output file location** depends on where you run `sbatch` from (relative paths in `#SBATCH --output`)
+6. **`gfbf` toolchain = FlexiBLAS/OpenBLAS with threading** — multi-worker scripts must set `OMP_NUM_THREADS=1` and `OPENBLAS_NUM_THREADS=1` to prevent thread oversubscription
+7. **`source()` inside `tar_rep()` command body** causes per-branch serialization of the function environment — always source at top level of `_targets.R`
+8. **`future::plan()` is invisible to `tar_make()`** — use `tar_make_future()` for future-based parallelism, or `tar_make()` with a crew controller
+9. **All SLURM scripts should use `set -euo pipefail`** — a failed `module load` or `cd` will otherwise silently continue
 
 ## Key Findings from bdml Debugging
 
@@ -46,6 +50,13 @@ Build up from simple to complex, one variable at a time:
 7. targets + crew
 8. targets + future backend
 9. Stan fits (added last — not suspected as root cause)
+
+## HPC Workflow Discipline
+
+- **Start small on ARC**: first submission of any strategy should use a small rep count (e.g. 20) to confirm it works and get per-rep timing, then scale up
+- **Print progress**: long-running jobs must print interim output (e.g. every 10 reps) so you can distinguish "slow" from "hung"
+- **Test at deployment config locally first**: don't test at 20 reps locally then deploy at 200 — run the exact same config on Mac to establish a baseline
+- **Read the docs before writing code**: ARC user guide, software guide, package docs (tar_rep, crew, future) — not after
 
 ## Conventions
 
