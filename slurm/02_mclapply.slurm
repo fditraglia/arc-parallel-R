@@ -8,14 +8,22 @@
 #SBATCH --time=00:30:00
 #SBATCH --mem=16G
 
+set -euo pipefail
+
 # --- Environment setup (SLURM does NOT source ~/.bashrc) ---
 module purge
 module load R/4.4.2-gfbf-2024a
 export R_LIBS=/data/econ-lead-public/econ0575/R_libs
 export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
 
+# Prevent BLAS/OpenMP thread oversubscription (gfbf toolchain uses FlexiBLAS/OpenBLAS)
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p results
+
 N_REPS=200
-N_CORES=${SLURM_CPUS_PER_TASK}
 
 Rscript --no-save --no-restore -e "
 source('R/sim_task.R')

@@ -8,11 +8,16 @@
 #SBATCH --time=00:30:00
 #SBATCH --mem=4G
 
+set -euo pipefail
+
 # --- Environment setup (SLURM does NOT source ~/.bashrc) ---
 module purge
 module load R/4.4.2-gfbf-2024a
 export R_LIBS=/data/econ-lead-public/econ0575/R_libs
 export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
+
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p results
 
 N_REPS=200
 

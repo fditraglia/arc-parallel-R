@@ -8,18 +8,24 @@
 #SBATCH --time=01:00:00
 #SBATCH --mem=16G
 
+set -euo pipefail
+
 # --- Environment setup (SLURM does NOT source ~/.bashrc) ---
 module purge
 module load R/4.4.2-gfbf-2024a
 export R_LIBS=/data/econ-lead-public/econ0575/R_libs
 export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
 
-cd $SLURM_SUBMIT_DIR
+# Prevent BLAS/OpenMP thread oversubscription (gfbf toolchain uses FlexiBLAS/OpenBLAS)
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
-# Control batching and workers
+cd "$SLURM_SUBMIT_DIR"
+
+# Control batching and workers — derive from SLURM allocation
 export N_BATCHES=20
 export N_REPS_PER_BATCH=10
-export N_WORKERS=8
+export N_WORKERS="${SLURM_CPUS_PER_TASK:-4}"
 
 echo "Strategy: targets + crew (local controller)"
 echo "Start: $(date)"

@@ -9,11 +9,16 @@
 #SBATCH --mem=4G
 #SBATCH --array=1-20
 
+set -euo pipefail
+
 # --- Environment setup (SLURM does NOT source ~/.bashrc) ---
 module purge
 module load R/4.4.2-gfbf-2024a
 export R_LIBS=/data/econ-lead-public/econ0575/R_libs
 export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
+
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p results
 
 # 200 total reps split across 20 array tasks = 10 reps per task
 REPS_PER_TASK=10
