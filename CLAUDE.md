@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-Systematic comparison of parallel R strategies on Oxford's ARC HPC cluster. Motivated by the bdml project where `targets` + `crew` hangs via `sbatch` despite working interactively.
+Find the best way to run fast, reliable, parallel simulations using the bdml R package (which fits Stan models) on Oxford's ARC HPC cluster. The parallelization strategy is an open question — targets+crew is one option but not the only one. This repo tests every common approach systematically.
 
 ## ARC Environment
 
@@ -40,16 +40,23 @@ Systematic comparison of parallel R strategies on Oxford's ARC HPC cluster. Moti
 
 ## Testing Strategy
 
-Build up from simple to complex, one variable at a time:
-1. Basic R via sbatch (baseline)
-2. parallel::mclapply via sbatch
-3. future::plan(multisession) via sbatch
-4. SLURM job arrays
-5. targets without crew or branching
-6. targets with dynamic branching
-7. targets + crew
-8. targets + future backend
-9. Stan fits (added last — not suspected as root cause)
+Two dimensions, tested independently then combined:
+
+**Phase 1 — Parallelism (simple OLS+bootstrap task, no Stan):** DONE
+1. Sequential baseline ✓
+2. parallel::mclapply ✓
+3. future::plan(multisession) ✓
+4. SLURM job arrays ✓
+5. targets + tar_rep (sequential) ✓
+6. targets + crew ✓
+7. targets + tar_make_future ✓ (broken on ARC — superseded, do not use)
+
+**Phase 2 — Add Stan:**
+8. Single Stan fit via sbatch (does Stan work at all?)
+9. Stan via mclapply (does fork() conflict with Stan's callr subprocess?)
+10. Stan via job arrays (fully independent processes, no forking)
+11. Stan via targets + crew
+12. Scale testing: increase branch/rep counts across strategies that work
 
 ## HPC Workflow Discipline
 
