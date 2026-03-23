@@ -1,6 +1,7 @@
 results/
 _targets*/
 .claude/
+stan/iv-simple
 .Rhistory
 .RData
 *.Rout
