@@ -19,15 +19,30 @@ Each rep takes ~9 seconds on ARC (Cascade Lake @ 2.90GHz), ~3 seconds on Apple S
 
 ## Strategies
 
+### Phase 1: OLS + bootstrap (no Stan)
+
 | Script | Strategy | Parallelism | Status |
 |--------|----------|-------------|--------|
 | `slurm/01_sequential.slurm` | For loop | None (baseline) | Works |
-| `slurm/02_mclapply.slurm` | `parallel::mclapply` | Multi-core, single node | Works |
-| `slurm/03_future.slurm` | `future::plan(multisession)` | Multi-core, single node | Works |
-| `slurm/04_job_array.slurm` | SLURM job array | Multiple independent jobs | Works |
+| `slurm/02_mclapply.slurm` | `parallel::mclapply` | Multi-core (fork) | Works |
+| `slurm/03_future.slurm` | `future::plan(multisession)` | Multi-core (separate processes) | Works |
+| `slurm/04_job_array.slurm` | SLURM job array | Independent jobs | Works |
 | `slurm/05_targets_basic.slurm` | `targets` + `tar_rep` | None (sequential targets) | Works |
-| `slurm/06_targets_crew.slurm` | `targets` + `tar_rep` + `crew` | Multi-core via crew workers | Works (at 10 branches) |
-| `slurm/07_targets_future.slurm` | `targets` + `tar_make_future` | Multi-core via future workers | **Broken on ARC** |
+| `slurm/06_targets_crew.slurm` | `targets` + `tar_rep` + `crew` | Multi-core via crew | Works (at 10 branches) |
+| `slurm/07_targets_future.slurm` | `targets` + `tar_make_future` | Multi-core via future | **Broken on ARC** |
+
+### Phase 2: Stan (Bayesian IV)
+
+| Script | Strategy | Parallelism | Status |
+|--------|----------|-------------|--------|
+| `slurm/08_stan_sequential.slurm` | Sequential Stan fits | 1 chain, 1 core | Works |
+| `slurm/09_stan_furrr.slurm` | `furrr` + `multisession` | 8 workers × 1 chain | Works |
+| `slurm/10_stan_job_array.slurm` | SLURM job array | 8 tasks × 1 chain | Works |
+| `slurm/11_stan_crew.slurm` | `targets` + `crew` | 8 workers × 1 chain | Works |
+
+**Not tested** (see [docs/stan-parallelism.md](docs/stan-parallelism.md)):
+- `mclapply` + Stan: fork-based parallelism has [documented issues](https://github.com/stan-dev/cmdstanr/issues/326) with cmdstanr (file collisions, shared tempdir)
+- `tar_make_future` + Stan: already confirmed broken on ARC in Phase 1
 
 ## Setup on ARC
 
@@ -46,19 +61,33 @@ export R_LIBS=/data/econ-lead-public/econ0575/R_libs
 ```bash
 Rscript -e 'install.packages(c(
   "tibble", "dplyr",
-  "future", "future.apply",
+  "future", "future.apply", "furrr",
   "targets", "tarchetypes",
-  "crew"
-), repos = "https://cloud.r-project.org")'
+  "crew", "cmdstanr"
+), repos = c("https://mc-stan.org/r-packages/", "https://cloud.r-project.org"))'
 ```
 
 Verify:
 ```bash
 Rscript -e 'for (p in c("targets", "tarchetypes", "crew", "future",
-  "future.apply", "tibble", "dplyr")) cat(p, ":", requireNamespace(p, quietly=TRUE), "\n")'
+  "future.apply", "furrr", "tibble", "dplyr", "cmdstanr")) cat(p, ":", requireNamespace(p, quietly=TRUE), "\n")'
 ```
 
-### 3. Clone and run
+### 3. Compile the Stan model
+
+Still on an interactive node (compilation needs the same CPU architecture as compute nodes):
+
+```bash
+cd $DATA/arc-parallel-R
+export CMDSTAN=/data/econ-lead-public/econ0575/cmdstan/cmdstan-2.38.0
+Rscript -e 'cmdstanr::cmdstan_model("stan/iv-simple.stan")'
+```
+
+This compiles `stan/iv-simple.stan` to `stan/iv-simple` (a binary executable).
+The binary is cached — subsequent calls to `cmdstan_model()` in SLURM jobs will
+load it without recompiling.
+
+### 4. Clone and run
 
 ```bash
 cd $DATA
@@ -67,17 +96,30 @@ cd arc-parallel-R
 sbatch slurm/01_sequential.slurm
 ```
 
-## ARC results (50 reps, 2026-03-23)
+## ARC results
+
+### Phase 1: OLS + bootstrap (50 reps, ~9s/rep)
 
 | # | Strategy | Cores | Time | Speedup | Notes |
 |---|----------|-------|------|---------|-------|
 | 01 | Sequential | 1 | 455s | 1.0x | Baseline: ~9.1s/rep |
 | 02 | mclapply | 8 | 66s | 6.9x | Near-linear scaling |
 | 03 | future | 8 | 70s | 6.5x | Slightly more overhead than mclapply |
-| 04 | Job array | 10x1 | 49s | — | Not directly comparable (10 cores, not 8) |
+| 04 | Job array | 10×1 | 49s | — | Not directly comparable (10 cores, not 8) |
 | 05 | targets basic | 1 | 448s | 1.0x | Negligible targets overhead at 10 branches |
 | 06 | targets+crew | 8 | 103s | 4.4x | Works via sbatch at 10 branches |
 | 07 | targets+future | 8 | 499s | 0.9x | **Did not parallelize** (see below) |
+
+### Phase 2: Stan Bayesian IV (24 reps, 1 chain, ~4s/rep)
+
+| # | Strategy | Cores | Time | Speedup | Notes |
+|---|----------|-------|------|---------|-------|
+| 08 | Sequential | 1 | 95s | 1.0x | Baseline: ~4.0s/rep |
+| 09 | furrr | 8 | 18s | 5.3x | Process-based parallel, no framework overhead |
+| 10 | Job array | 8×1 | 14s | 6.8x | Fastest — zero coordination overhead |
+| 11 | targets+crew | 8 | 22s | 4.3x | Works via sbatch at 8 branches |
+
+All Phase 2 strategies use 1 chain per Stan fit (parallelism across reps, not within fits). This matches the simulation study design: many fast independent fits rather than a few well-diagnosed ones. `mclapply` was not tested with Stan due to [documented issues](docs/stan-parallelism.md) with fork-based parallelism and cmdstanr.
 
 ### Why targets+future fails on ARC
 
