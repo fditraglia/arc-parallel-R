@@ -22,9 +22,9 @@ export OPENBLAS_NUM_THREADS=1
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p results
 
-# 200 total reps across 8 tasks = 25 reps per task.
+# 1200 total reps across 8 tasks = 150 reps per task.
 # Each task: 1 core, 1 chain per fit. Fully independent processes.
-REPS_PER_TASK=25
+REPS_PER_TASK=150
 
 Rscript --no-save --no-restore -e "
 source('R/sim_task_stan.R')

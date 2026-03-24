@@ -21,7 +21,7 @@ export OPENBLAS_NUM_THREADS=1
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p results
 
-N_REPS=200
+N_REPS=1200
 
 echo "Strategy: furrr + multisession with Stan (8 workers, 1 chain each)"
 echo "Start: $(date)"

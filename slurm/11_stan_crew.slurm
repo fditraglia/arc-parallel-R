@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --mem=16G
 
 set -euo pipefail
@@ -20,8 +20,10 @@ export OPENBLAS_NUM_THREADS=1
 
 cd "$SLURM_SUBMIT_DIR"
 
-export N_BATCHES=8
-export N_REPS_PER_BATCH=25
+# 1200 batches x 1 rep = 1200 branches. This is the scale where
+# the bdml pipeline hangs. Testing whether the hang reproduces here.
+export N_BATCHES=1200
+export N_REPS_PER_BATCH=1
 export N_WORKERS="${SLURM_CPUS_PER_TASK:-8}"
 
 echo "Strategy: targets + crew + Stan (8 workers, 1 chain each)"
