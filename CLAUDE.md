@@ -65,6 +65,13 @@ Two dimensions, tested independently then combined:
 - **Test at deployment config locally first**: don't test at 20 reps locally then deploy at 200 — run the exact same config on Mac to establish a baseline
 - **Read the docs before writing code**: ARC user guide, software guide, package docs (tar_rep, crew, future) — not after
 
+## Scientific Method — No Speculation Without Experiments
+
+- **If you have a hypothesis, design a test.** This repo exists to run experiments. Don't theorize about what might cause a hang — write a script that isolates the variable and run it.
+- **One variable at a time.** Each test should change exactly one thing from a known-working baseline.
+- **Evidence over stories.** "tar_map_rep might behave differently" is a hypothesis. Running tar_map_rep at 1200 branches and observing what happens is evidence. Only evidence counts.
+- **Don't accumulate untested hypotheses.** If you've listed 4 possible causes, you should be designing 4 experiments, not writing 4 paragraphs of speculation.
+
 ## Conventions
 
 - Each strategy gets its own SLURM script in `slurm/`
