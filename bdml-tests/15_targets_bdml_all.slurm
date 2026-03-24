@@ -20,9 +20,10 @@ export OPENBLAS_NUM_THREADS=1
 
 cd "$SLURM_SUBMIT_DIR"
 
-# 6 grid points x 10 batches x 1 rep = 60 branches (same as bdml test config)
+# 6 grid points x 10 batches x 20 reps = 60 branches, 200 reps per grid point
+# Matches bdml test config exactly (simul_size=200, max_batches=10)
 export N_BATCHES=10
-export N_REPS_PER_BATCH=1
+export N_REPS_PER_BATCH=20
 export N_WORKERS="${SLURM_CPUS_PER_TASK:-8}"
 
 echo "Strategy: targets + crew + ALL 9 bdml estimators (no callr)"
