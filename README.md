@@ -178,25 +178,26 @@ The bdml hang is **not** caused by any of the above. Remaining suspects:
    directory.
 
 4. **It may not actually hang anymore** — the bdml code has changed since the
-   last ARC attempt (serialization fix applied, batching cap added). The branch
-   setup phase is legitimately slow and silent (5+ minutes at 1200 branches).
-   The original "hang" may have been premature termination.
+   last ARC attempt (serialization fix applied, batching cap added). The
+   original "hang" may have been premature termination of a slow setup phase,
+   or may no longer reproduce with the current code.
 
-4. **The original hang may have been premature termination** — our 1200-branch
-   test sat silent for 5+ minutes at "declared branches" before dispatching.
-   The bdml "hang" may have been killed before the branch-setup phase completed.
+### What we have NOT tested
+
+- The actual bdml package environment (heavy dependencies, complex functions)
+- Whether BLAS thread pinning changes bdml's behaviour
+- Whether the bdml hang reproduces with the current (modified) bdml code
 
 ### Quick fixes to try in bdml (before any restructuring)
 
 1. Add `export OMP_NUM_THREADS=1` and `export OPENBLAS_NUM_THREADS=1` to `run_simul.slurm`
 2. Preflight Stan model compilation before the pipeline starts
-3. Try replacing `tar_map_rep()` with flat `tar_rep()` as an A/B test
-4. Re-run with more patience (wait 15+ minutes before assuming it's hung)
+3. Re-run with patience — monitor output and wait before assuming it's hung
 
 ### Open questions
 
+- Does the bdml hang still reproduce with the current (modified) code?
 - Is BLAS thread oversubscription the primary cause, or just a contributor?
-- Does `tar_map_rep()` at ~1350 branches hang where `tar_rep()` at 1200 doesn't?
 - Would restructuring bdml to use furrr or job arrays avoid all of these issues?
 
 ## Key lessons learned
