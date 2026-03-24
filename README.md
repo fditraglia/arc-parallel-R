@@ -182,51 +182,45 @@ The bdml hang is **not** caused by any of the above. Remaining suspects:
    original "hang" may have been premature termination of a slow setup phase,
    or may no longer reproduce with the current code.
 
-### Key finding: bdml's wrapping layers are the bottleneck
+### bdml direct tests: calling estimators without the wrapping
 
-We ran the same simulation (6 grid points × 10 reps × 9 estimators = 540 fits)
-two ways on ARC:
+We called bdml's estimator functions (`bdml::sim_iter_stan()`,
+`bdml::sim_iter_nonstan()`) directly through targets+crew, bypassing bdml's
+`run_grid_point_rep()` and its wrapping layers (`callr::r()`, `capture.output()`,
+`withr::with_tempdir()`).
 
-| Approach | Time | Notes |
-|----------|------|-------|
-| Full bdml pipeline (`run_simul.slurm`) | ~222 min | With callr, capture.output, withr wrapping |
-| Direct bdml function calls (test 15) | 82s | Same estimators, no wrapping |
+**Test 13** — Single Stan estimator (BDML-LKJ-HP), sequential, 8 reps:
+- ARC: 2.3s/rep
+- Mac: 1.0s/rep
 
-**What we found:** Calling `bdml::sim_iter_stan()` and `bdml::sim_iter_nonstan()`
-directly through targets+crew — without bdml's `callr::r()` subprocess wrapping,
-`capture.output()`, or `withr::with_tempdir()` — is roughly **150x faster**.
+**Test 15** — All 9 estimators via targets+crew+tar_map_rep:
 
-**What we suspect but have not proven:** The primary culprit is likely `callr::r()`
-in `run_stan_isolated()`, which spawns a fresh R subprocess for every Stan fit.
-Each subprocess must load the bdml package and all dependencies from the network
-filesystem. On local SSD (Mac) this overhead is negligible; on ARC's shared NFS
-it could be 5-15 seconds per subprocess. However, we removed multiple wrapping
-layers at once, so we cannot attribute the slowdown to callr alone without further
-single-variable testing.
+| Reps/grid point | Branches | Mac | ARC |
+|-----------------|----------|-----|-----|
+| 1 | 6 | 14.3s | — |
+| 10 | 60 | — | 82s |
+| 200 | 60 | — | 1422s (23.7 min) |
 
-**What we also found:**
-- The bdml pipeline does run to completion via sbatch (it was not actually hung —
-  progress output goes to `.err` not `.out`, and the jobs are just very slow)
-- BLAS thread pinning (`OMP_NUM_THREADS=1`) was added but did not explain the
-  slowness — the pipeline was still ~37 min/grid point with pinning enabled
+Scaling is roughly linear: 82s × 20 ≈ 1640s, actual 1422s. ARC is ~5-6× slower
+than Mac per unit of work.
 
-### Implications for bdml
+**What we have NOT measured:** The total wall clock time for the full bdml pipeline
+(`run_grid_point_rep` with callr wrapping) at the same 200 reps/grid point config.
+We ran it once but did not record the final wall clock before moving on. The
+per-grid-point times reported by targets (3m 40s for the first, ~37m for others)
+are aggregate worker times, not wall clock, and we cannot directly compare them
+to our test 15 wall clock.
 
-The core computation is fast on ARC. The package wrapping is what's slow.
-Options for fixing bdml:
+**What we observed about the bdml pipeline:**
+- It does run to completion via sbatch — it was not actually hung
+- Progress output goes to `.err` not `.out` (targets prints to stderr with
+  `callr_function = NULL`), which made it appear unresponsive
+- BLAS thread pinning was missing from the SLURM script
 
-1. **Remove `callr::r()` wrapping for Stan fits** — crew already provides process
-   isolation; callr is redundant and expensive on network filesystems
-2. **Build a lean simulation pipeline** that calls bdml estimator functions directly,
-   bypassing `run_grid_point_rep()` and its wrapping layers
-3. **Move temp files to local scratch** (`$TMPDIR`) to reduce network I/O from
-   BLR `.dat` files and CmdStan CSV output
-
-### Open questions
-
-- How much of the 150x slowdown is callr specifically vs other wrapping?
-- Would removing callr alone fix the bdml pipeline, or are other changes needed?
-- Is the `capture.output()` / `withr::with_tempdir()` overhead significant on NFS?
+**What remains to be tested:**
+- Rerun the full bdml pipeline and record actual wall clock for direct comparison
+- Isolate the effect of `callr::r()` wrapping as a single variable
+- Determine whether the overhead is callr, capture.output, withr, or a combination
 
 ## Key lessons learned
 
