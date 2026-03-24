@@ -146,36 +146,41 @@ This is consistent with broader issues:
 
 **Bottom line**: `tar_make_future()` is a dead end. Use `tar_make()` with crew (script 06), which is the officially recommended approach and works correctly via sbatch.
 
-### Key finding: targets+crew works at 1200 branches
+### Key finding: targets+crew works at 1200 branches (both tar_rep and tar_map_rep)
 
 The upstream bdml pipeline hangs at 1,200+ dynamic branches via sbatch on ARC. We tested
-targets+crew at exactly 1200 branches (`tar_rep` with 1200 batches × 1 rep) using a simple
-Stan IV model — and **it completed successfully** in 617 seconds.
+both branching mechanisms at 1200 branches with Stan + crew:
 
-This means the bdml hang is **not** caused by:
-- targets + crew at high branch counts (works here)
-- Stan via sbatch (works here)
-- ARC's SLURM environment (works here)
+| Test | Branching | Branches | Time |
+|------|-----------|----------|------|
+| Script 11 | `tar_rep` (flat) | 1200 × 1 | 617s |
+| Script 12 | `tar_map_rep` (grid) | 6 grid × 200 batches | 566s |
 
-The hang must be caused by something specific to the bdml pipeline. After reviewing
-the bdml code, the most likely suspects (in priority order):
+Both completed successfully. This rules out:
+- targets + crew at high branch counts
+- `tar_map_rep()` specifically (the branching mechanism bdml uses)
+- Stan via sbatch
+- ARC's SLURM environment generally
+
+The bdml hang is **not** caused by any of the above. Remaining suspects:
 
 1. **Missing BLAS thread pinning** — bdml's `run_simul.slurm` does not set
    `OMP_NUM_THREADS=1` or `OPENBLAS_NUM_THREADS=1`. With 24 crew workers each
    triggering multi-threaded BLAS calls (via Stan and `lm()`), this creates
-   hundreds of threads competing for 48 cores. This alone can make a job appear
-   hung. Our test repo sets these variables — bdml doesn't.
+   hundreds of threads competing for 48 cores.
 
-2. **`tar_map_rep()` vs `tar_rep()`** — bdml uses `tar_map_rep()` which adds a
-   static mapping layer over a parameter grid, creating grouped/named branches
-   with extra metadata (`tar_group`, `tar_batch`, `tar_rep`, `tar_seed`) and a
-   `combine = TRUE` step. This extra graph construction in the main process is
-   exactly what our simple `tar_rep()` test doesn't exercise.
+2. **The bdml package environment itself** — heavy dependencies (`tidyverse`,
+   `bdml`, `cmdstanr`), `library(tidyverse)` loaded into the global environment
+   at pipeline definition time, or the complexity of `bdml::run_grid_point_rep()`.
 
 3. **Stan model fallback compilation** — if `instantiate::stan_package_model()`
    fails on a worker, bdml falls back to dev-mode compilation in a shared
-   directory. With `callr::r()` wrapping each fit, process-local model caching
-   is lost and workers could repeatedly recompile.
+   directory.
+
+4. **It may not actually hang anymore** — the bdml code has changed since the
+   last ARC attempt (serialization fix applied, batching cap added). The branch
+   setup phase is legitimately slow and silent (5+ minutes at 1200 branches).
+   The original "hang" may have been premature termination.
 
 4. **The original hang may have been premature termination** — our 1200-branch
    test sat silent for 5+ minutes at "declared branches" before dispatching.
