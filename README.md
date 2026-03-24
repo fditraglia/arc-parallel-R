@@ -110,16 +110,16 @@ sbatch slurm/01_sequential.slurm
 | 06 | targets+crew | 8 | 103s | 4.4x | Works via sbatch at 10 branches |
 | 07 | targets+future | 8 | 499s | 0.9x | **Did not parallelize** (see below) |
 
-### Phase 2: Stan Bayesian IV (24 reps, 1 chain, ~4s/rep)
+### Phase 2: Stan Bayesian IV (200 reps, 1 chain, ~3.9s/rep)
 
-| # | Strategy | Cores | Time | Speedup | Notes |
-|---|----------|-------|------|---------|-------|
-| 08 | Sequential | 1 | 95s | 1.0x | Baseline: ~4.0s/rep |
-| 09 | furrr | 8 | 18s | 5.3x | Process-based parallel, no framework overhead |
-| 10 | Job array | 8×1 | 14s | 6.8x | Fastest — zero coordination overhead |
-| 11 | targets+crew | 8 | 22s | 4.3x | Works via sbatch at 8 branches |
+| # | Strategy | Cores | Time | Speedup | Coverage | Notes |
+|---|----------|-------|------|---------|----------|-------|
+| 08 | Sequential | 1 | 782s | 1.0x | 87.5% | Baseline: ~3.9s/rep |
+| 09 | furrr | 8 | 104s | 7.5x | 85.5% | Near-linear scaling, minimal overhead |
+| 10 | Job array | 8×1 | 103s | 7.6x | — | Fastest — zero coordination overhead |
+| 11 | targets+crew | 8 | 117s | 6.7x | — | Slightly more overhead, but robust |
 
-All Phase 2 strategies use 1 chain per Stan fit (parallelism across reps, not within fits). This matches the simulation study design: many fast independent fits rather than a few well-diagnosed ones. `mclapply` was not tested with Stan due to [documented issues](docs/stan-parallelism.md) with fork-based parallelism and cmdstanr.
+All Phase 2 strategies use 1 chain per Stan fit (parallelism across reps, not within fits). This matches the simulation study design: many fast independent fits rather than a few well-diagnosed ones. Coverage rates are close to the expected 90% for the 90% credible interval. `mclapply` was not tested with Stan due to [documented issues](docs/stan-parallelism.md) with fork-based parallelism and cmdstanr.
 
 ### Why targets+future fails on ARC
 
