@@ -182,23 +182,51 @@ The bdml hang is **not** caused by any of the above. Remaining suspects:
    original "hang" may have been premature termination of a slow setup phase,
    or may no longer reproduce with the current code.
 
-### What we have NOT tested
+### Key finding: bdml's wrapping layers are the bottleneck
 
-- The actual bdml package environment (heavy dependencies, complex functions)
-- Whether BLAS thread pinning changes bdml's behaviour
-- Whether the bdml hang reproduces with the current (modified) bdml code
+We ran the same simulation (6 grid points × 10 reps × 9 estimators = 540 fits)
+two ways on ARC:
 
-### Quick fixes to try in bdml (before any restructuring)
+| Approach | Time | Notes |
+|----------|------|-------|
+| Full bdml pipeline (`run_simul.slurm`) | ~222 min | With callr, capture.output, withr wrapping |
+| Direct bdml function calls (test 15) | 82s | Same estimators, no wrapping |
 
-1. Add `export OMP_NUM_THREADS=1` and `export OPENBLAS_NUM_THREADS=1` to `run_simul.slurm`
-2. Preflight Stan model compilation before the pipeline starts
-3. Re-run with patience — monitor output and wait before assuming it's hung
+**What we found:** Calling `bdml::sim_iter_stan()` and `bdml::sim_iter_nonstan()`
+directly through targets+crew — without bdml's `callr::r()` subprocess wrapping,
+`capture.output()`, or `withr::with_tempdir()` — is roughly **150x faster**.
+
+**What we suspect but have not proven:** The primary culprit is likely `callr::r()`
+in `run_stan_isolated()`, which spawns a fresh R subprocess for every Stan fit.
+Each subprocess must load the bdml package and all dependencies from the network
+filesystem. On local SSD (Mac) this overhead is negligible; on ARC's shared NFS
+it could be 5-15 seconds per subprocess. However, we removed multiple wrapping
+layers at once, so we cannot attribute the slowdown to callr alone without further
+single-variable testing.
+
+**What we also found:**
+- The bdml pipeline does run to completion via sbatch (it was not actually hung —
+  progress output goes to `.err` not `.out`, and the jobs are just very slow)
+- BLAS thread pinning (`OMP_NUM_THREADS=1`) was added but did not explain the
+  slowness — the pipeline was still ~37 min/grid point with pinning enabled
+
+### Implications for bdml
+
+The core computation is fast on ARC. The package wrapping is what's slow.
+Options for fixing bdml:
+
+1. **Remove `callr::r()` wrapping for Stan fits** — crew already provides process
+   isolation; callr is redundant and expensive on network filesystems
+2. **Build a lean simulation pipeline** that calls bdml estimator functions directly,
+   bypassing `run_grid_point_rep()` and its wrapping layers
+3. **Move temp files to local scratch** (`$TMPDIR`) to reduce network I/O from
+   BLR `.dat` files and CmdStan CSV output
 
 ### Open questions
 
-- Does the bdml hang still reproduce with the current (modified) code?
-- Is BLAS thread oversubscription the primary cause, or just a contributor?
-- Would restructuring bdml to use furrr or job arrays avoid all of these issues?
+- How much of the 150x slowdown is callr specifically vs other wrapping?
+- Would removing callr alone fix the bdml pipeline, or are other changes needed?
+- Is the `capture.output()` / `withr::with_tempdir()` overhead significant on NFS?
 
 ## Key lessons learned
 
