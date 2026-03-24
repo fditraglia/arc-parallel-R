@@ -110,7 +110,9 @@ sbatch slurm/01_sequential.slurm
 | 06 | targets+crew | 8 | 103s | 4.4x | Works via sbatch at 10 branches |
 | 07 | targets+future | 8 | 499s | 0.9x | **Did not parallelize** (see below) |
 
-### Phase 2: Stan Bayesian IV (200 reps, 1 chain, ~3.9s/rep)
+### Phase 2: Stan Bayesian IV (1 chain per fit, ~4s/rep)
+
+**200 reps:**
 
 | # | Strategy | Cores | Time | Speedup | Coverage | Notes |
 |---|----------|-------|------|---------|----------|-------|
@@ -119,7 +121,17 @@ sbatch slurm/01_sequential.slurm
 | 10 | Job array | 8×1 | 103s | 7.6x | — | Fastest — zero coordination overhead |
 | 11 | targets+crew | 8 | 117s | 6.7x | — | Slightly more overhead, but robust |
 
-All Phase 2 strategies use 1 chain per Stan fit (parallelism across reps, not within fits). This matches the simulation study design: many fast independent fits rather than a few well-diagnosed ones. Coverage rates are close to the expected 90% for the 90% credible interval. `mclapply` was not tested with Stan due to [documented issues](docs/stan-parallelism.md) with fork-based parallelism and cmdstanr.
+**1200 reps (stress test at bdml-scale branch count):**
+
+| # | Strategy | Cores | Time | Coverage | Notes |
+|---|----------|-------|------|----------|-------|
+| 09 | furrr | 8 | 614s | 91.4% | Worked without issues |
+| 10 | Job array | 8×1 | 638s | — | Worked without issues |
+| 11 | targets+crew | 8 | 617s | — | **Worked** — 1200 branches dispatched successfully |
+
+All strategies use 1 chain per Stan fit (parallelism across reps, not within fits).
+Coverage rates are close to the expected 90% for the 90% credible interval.
+`mclapply` was not tested with Stan due to [documented issues](docs/stan-parallelism.md) with fork-based parallelism and cmdstanr.
 
 ### Why targets+future fails on ARC
 
@@ -134,12 +146,28 @@ This is consistent with broader issues:
 
 **Bottom line**: `tar_make_future()` is a dead end. Use `tar_make()` with crew (script 06), which is the officially recommended approach and works correctly via sbatch.
 
+### Key finding: targets+crew works at 1200 branches
+
+The upstream bdml pipeline hangs at 1,200+ dynamic branches via sbatch on ARC. We tested
+targets+crew at exactly 1200 branches (`tar_rep` with 1200 batches × 1 rep) using a simple
+Stan IV model — and **it completed successfully** in 617 seconds.
+
+This means the bdml hang is **not** caused by:
+- targets + crew at high branch counts (works here)
+- Stan via sbatch (works here)
+- ARC's SLURM environment (works here)
+
+The hang must be caused by something specific to the bdml pipeline:
+- Heavier function environment / package dependencies (tidyverse, bdml internals)
+- `tar_map_rep()` vs `tar_rep()` (different dynamic branching mechanism)
+- More complex Stan models via `instantiate`
+- Interaction between `imports = "bdml"` and the targets dependency graph
+
 ### Open questions
 
-- Does targets+crew break at higher branch counts (100, 500, 1200+)?
-  The upstream bdml pipeline hangs at 1,200 branches. Our test used only 10.
-- How much does BLAS thread pinning matter for absolute performance?
-- What is the optimal batch size for `tar_rep()` on ARC?
+- What specifically about bdml causes the 1200-branch hang?
+- Does `tar_map_rep()` behave differently from `tar_rep()` at scale?
+- Would restructuring bdml to use furrr or job arrays avoid the issue entirely?
 
 ## Key lessons learned
 
