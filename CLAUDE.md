@@ -30,13 +30,24 @@ Find the best way to run fast, reliable, parallel simulations using the bdml R p
 
 ## Key Findings from bdml Debugging
 
-- `targets` + `crew` dispatches branches fine **interactively** on ARC
-- `targets` + `crew` **never dispatched a single branch via sbatch** — hangs after declaring branches
-- `targets` without crew (`use_crew = FALSE`) **also hangs via sbatch** — so crew is not the sole problem
-- The same pipeline works perfectly on a MacBook (even with 10,000+ branches)
-- Trivial commands (`rnorm(1)`) dispatch fine at 1,200 branches interactively
-- Package functions dispatch at 60 branches interactively; sourced functions hang at any count
-- Root cause unknown — suspected main-process scheduler overhead on slower HPC hardware
+**Original problem:** bdml pipeline appeared to hang via sbatch on ARC.
+
+**What actually happened:** The pipeline was never hung. Progress output goes to
+stderr (`.err` file) not stdout (`.out` file) when using `callr_function = NULL`.
+Checking only `.out` made it appear unresponsive.
+
+**Earlier findings (still valid):**
+- crew needs `host = "127.0.0.1"` on ARC compute nodes
+- Sourced functions in `tar_map_rep()` cause per-branch environment serialization — use `pkg::function()`
+- Both fixes were already applied to bdml before this repo was created
+
+**What this repo proved:**
+- targets + crew works at 1200 branches on ARC (both tar_rep and tar_map_rep)
+- The real bdml Stan model (BDML-LKJ-HP) fits in ~2.3s/rep on ARC
+- All 9 bdml estimators work via targets+crew on ARC
+- The full bdml pipeline completes the test scenario in 33.7 min (8 workers)
+- Calling bdml functions directly (no callr/capture.output wrapping) takes 23.7 min
+- Wrapping overhead: 42% on ARC vs 8.5% on Mac — NFS I/O is the likely cause
 
 ## Testing Strategy
 
