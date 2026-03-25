@@ -204,23 +204,29 @@ We called bdml's estimator functions (`bdml::sim_iter_stan()`,
 Scaling is roughly linear: 82s × 20 ≈ 1640s, actual 1422s. ARC is ~5-6× slower
 than Mac per unit of work.
 
-**What we have NOT measured:** The total wall clock time for the full bdml pipeline
-(`run_grid_point_rep` with callr wrapping) at the same 200 reps/grid point config.
-We ran it once but did not record the final wall clock before moving on. The
-per-grid-point times reported by targets (3m 40s for the first, ~37m for others)
-are aggregate worker times, not wall clock, and we cannot directly compare them
-to our test 15 wall clock.
+**Full bdml pipeline comparison** (same workload: 6 grid × 200 reps × 9 estimators, 8 crew workers):
 
-**What we observed about the bdml pipeline:**
-- It does run to completion via sbatch — it was not actually hung
-- Progress output goes to `.err` not `.out` (targets prints to stderr with
-  `callr_function = NULL`), which made it appear unresponsive
-- BLAS thread pinning was missing from the SLURM script
+| Run | Wall clock | Notes |
+|-----|-----------|-------|
+| Test 15 (direct function calls) | 23.7 min | No callr, no capture.output, no withr |
+| Full bdml pipeline (`run_simul.slurm`) | 33.7 min | With all wrapping layers |
+
+The wrapping layers add about **10 minutes (~42% overhead)**. Significant but not
+catastrophic. The bdml pipeline runs to completion on ARC in reasonable time.
+
+**What we learned about the bdml pipeline:**
+- It was never actually hung — progress output goes to `.err` not `.out`
+  (targets prints to stderr with `callr_function = NULL`), which made it
+  appear unresponsive when checking `.out`
+- BLAS thread pinning (`OMP_NUM_THREADS=1`) was missing from the SLURM script
+  and has now been added
+- The `callr::r()` wrapping, `capture.output()`, and `withr::with_tempdir()`
+  together add ~42% overhead vs calling bdml functions directly
 
 **What remains to be tested:**
-- Rerun the full bdml pipeline and record actual wall clock for direct comparison
-- Isolate the effect of `callr::r()` wrapping as a single variable
-- Determine whether the overhead is callr, capture.output, withr, or a combination
+- Isolate which wrapping layer contributes most to the 42% overhead
+- Scale to the full `main` scenario (135 grid points × 2000 reps)
+- Determine optimal worker count and batch size for production runs
 
 ## Key lessons learned
 
