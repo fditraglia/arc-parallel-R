@@ -195,16 +195,15 @@ We called bdml's estimator functions (`bdml::sim_iter_stan()`,
 
 **Test 15** — All 9 estimators via targets+crew+tar_map_rep (the full simulation):
 
-| Reps/grid point | Branches | Mac | ARC |
-|-----------------|----------|-----|-----|
-| 1 | 6 | 14.3s | — |
-| 10 | 60 | — | 82s |
-| 200 | 60 | — | 1422s (23.7 min) |
+**Complete timing comparison** (6 grid × 200 reps × 9 estimators, 8 crew workers):
 
-Scaling is roughly linear: 82s × 20 ≈ 1640s, actual 1422s. ARC is ~5-6× slower
-than Mac per unit of work.
+| Run | Mac | ARC | ARC/Mac |
+|-----|-----|-----|---------|
+| Test 15 (direct function calls) | 14.3 min (856s) | 23.7 min (1422s) | 1.66x |
+| Full bdml pipeline (with wrapping) | 15.5 min (929s) | 33.7 min (2023s) | 2.18x |
+| **Wrapping overhead** | **73s (8.5%)** | **10 min (42%)** | |
 
-**Full bdml pipeline comparison** (same workload: 6 grid × 200 reps × 9 estimators, 8 crew workers, via `seff`):
+ARC `seff` details for both runs:
 
 | Metric | Test 15 (direct) | Full bdml pipeline |
 |--------|-----------------|-------------------|
@@ -213,9 +212,10 @@ than Mac per unit of work.
 | CPU efficiency | 91% | 84% |
 | Memory used | 2.7 GB | 4.3 GB |
 
-The wrapping layers add **10 minutes wall clock (42%)**, **53 minutes CPU time (31%)**,
-and **1.6 GB memory**. The extra CPU time is real work (loading packages in callr
-subprocesses, capture.output overhead), not idle time.
+The wrapping overhead (callr, capture.output, withr) is **negligible on Mac (8.5%)**
+but **large on ARC (42%)**. This points to filesystem I/O as the likely cause:
+callr subprocesses loading packages from ARC's network filesystem, plus temp file
+creation/deletion on NFS. On Mac's local SSD these operations are fast.
 
 **What we learned about the bdml pipeline:**
 - It was never actually hung — progress output goes to `.err` not `.out`
