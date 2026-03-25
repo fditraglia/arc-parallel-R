@@ -71,6 +71,9 @@ Two dimensions, tested independently then combined:
 - **One variable at a time.** Each test should change exactly one thing from a known-working baseline.
 - **Evidence over stories.** "tar_map_rep might behave differently" is a hypothesis. Running tar_map_rep at 1200 branches and observing what happens is evidence. Only evidence counts.
 - **Don't accumulate untested hypotheses.** If you've listed 4 possible causes, you should be designing 4 experiments, not writing 4 paragraphs of speculation.
+- **Do arithmetic carefully.** When comparing timings, check: same rep count? Same number of estimators? Wall clock vs aggregate worker time? Per-rep vs total? Don't claim "150x faster" when comparing 10 reps to 200 reps.
+- **Know which repo/branch you're in.** Before committing, verify with `git remote -v` and `git branch`. This project spans two repos (arc-parallel-R and bdml). Don't push to the wrong branch.
+- **Don't write down claims you can't support.** If you haven't measured something, say so. Don't round speculation into fact in documentation — it will mislead future readers (including yourself).
 
 ## Conventions
 
