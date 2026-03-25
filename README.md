@@ -204,15 +204,18 @@ We called bdml's estimator functions (`bdml::sim_iter_stan()`,
 Scaling is roughly linear: 82s × 20 ≈ 1640s, actual 1422s. ARC is ~5-6× slower
 than Mac per unit of work.
 
-**Full bdml pipeline comparison** (same workload: 6 grid × 200 reps × 9 estimators, 8 crew workers):
+**Full bdml pipeline comparison** (same workload: 6 grid × 200 reps × 9 estimators, 8 crew workers, via `seff`):
 
-| Run | Wall clock | Notes |
-|-----|-----------|-------|
-| Test 15 (direct function calls) | 23.7 min | No callr, no capture.output, no withr |
-| Full bdml pipeline (`run_simul.slurm`) | 33.7 min | With all wrapping layers |
+| Metric | Test 15 (direct) | Full bdml pipeline |
+|--------|-----------------|-------------------|
+| Wall clock | 23:46 | 33:43 |
+| CPU utilized | 2h 53m | 3h 46m |
+| CPU efficiency | 91% | 84% |
+| Memory used | 2.7 GB | 4.3 GB |
 
-The wrapping layers add about **10 minutes (~42% overhead)**. Significant but not
-catastrophic. The bdml pipeline runs to completion on ARC in reasonable time.
+The wrapping layers add **10 minutes wall clock (42%)**, **53 minutes CPU time (31%)**,
+and **1.6 GB memory**. The extra CPU time is real work (loading packages in callr
+subprocesses, capture.output overhead), not idle time.
 
 **What we learned about the bdml pipeline:**
 - It was never actually hung — progress output goes to `.err` not `.out`
