@@ -189,11 +189,11 @@ We called bdml's estimator functions (`bdml::sim_iter_stan()`,
 `run_grid_point_rep()` and its wrapping layers (`callr::r()`, `capture.output()`,
 `withr::with_tempdir()`).
 
-**Test 13** — Single Stan estimator (BDML-LKJ-HP), sequential, 8 reps:
-- ARC: 2.3s/rep
+**Test 13** — Single Stan estimator (BDML-LKJ-HP) only, sequential, 8 reps:
+- ARC: 2.3s/rep (one estimator, not the full simulation)
 - Mac: 1.0s/rep
 
-**Test 15** — All 9 estimators via targets+crew+tar_map_rep:
+**Test 15** — All 9 estimators via targets+crew+tar_map_rep (the full simulation):
 
 | Reps/grid point | Branches | Mac | ARC |
 |-----------------|----------|-----|-----|
