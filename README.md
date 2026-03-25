@@ -182,12 +182,18 @@ The bdml hang is **not** caused by any of the above. Remaining suspects:
    original "hang" may have been premature termination of a slow setup phase,
    or may no longer reproduce with the current code.
 
-### bdml direct tests: calling estimators without the wrapping
+### bdml direct tests: calling estimators without the outer wrapping
 
 We called bdml's estimator functions (`bdml::sim_iter_stan()`,
-`bdml::sim_iter_nonstan()`) directly through targets+crew, bypassing bdml's
-`run_grid_point_rep()` and its wrapping layers (`callr::r()`, `capture.output()`,
-`withr::with_tempdir()`).
+`bdml::sim_iter_nonstan()`) directly through targets+crew, bypassing
+`run_grid_point_rep()`'s outer wrapping layers:
+- **`callr::r()`** — removed for the 1 Stan method (BDML-LKJ-HP)
+- **outer `capture.output(type="message")`** — removed for all 9 methods
+
+Note: the inner `withr::with_tempdir()` and inner `capture.output()` inside
+individual BLR estimator functions (fit_naive, fit_hcph, fit_linero, fit_fdml)
+were present in **both** the direct and wrapped tests. They are not part of
+the measured overhead differential.
 
 **Test 13** — Single Stan estimator (BDML-LKJ-HP) only, sequential, 8 reps:
 - ARC: 2.3s/rep (one estimator, not the full simulation)
@@ -212,10 +218,18 @@ ARC `seff` details for both runs:
 | CPU efficiency | 91% | 84% |
 | Memory used | 2.7 GB | 4.3 GB |
 
-The wrapping overhead (callr, capture.output, withr) is **negligible on Mac (8.5%)**
-but **large on ARC (42%)**. This points to filesystem I/O as the likely cause:
-callr subprocesses loading packages from ARC's network filesystem, plus temp file
-creation/deletion on NFS. On Mac's local SSD these operations are fast.
+The outer wrapping overhead is **negligible on Mac (8.5%)** but **large on
+ARC (42%)**. The overhead comes from removing two outer layers together:
+`callr::r()` (1,200 subprocess spawns for the Stan method) and the outer
+`capture.output(type="message")` (10,800 calls across all 9 methods).
+We have not isolated the contribution of each, but `callr` is almost certainly
+dominant — each invocation spawns a new R process that loads packages from
+ARC's NFS filesystem. The outer `capture.output` is a lightweight R-level
+redirection and likely contributes much less.
+
+Note: `withr::with_tempdir()` inside BLR estimator functions is another
+NFS-sensitive operation, but it runs in both tests equally and is **not**
+part of the 42% differential.
 
 **What we learned about the bdml pipeline:**
 - It was never actually hung — progress output goes to `.err` not `.out`
@@ -223,11 +237,11 @@ creation/deletion on NFS. On Mac's local SSD these operations are fast.
   appear unresponsive when checking `.out`
 - BLAS thread pinning (`OMP_NUM_THREADS=1`) was missing from the SLURM script
   and has now been added
-- The `callr::r()` wrapping, `capture.output()`, and `withr::with_tempdir()`
-  together add ~42% overhead vs calling bdml functions directly
+- The outer `callr::r()` + `capture.output()` wrapping adds ~42% overhead on
+  ARC vs ~8.5% on Mac. `callr` subprocess package-loading on NFS is the
+  likely dominant cause.
 
 **What remains to be tested:**
-- Isolate which wrapping layer contributes most to the 42% overhead
 - Scale to the full `main` scenario (135 grid points × 2000 reps)
 - Determine optimal worker count and batch size for production runs
 

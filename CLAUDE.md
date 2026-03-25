@@ -46,8 +46,12 @@ Checking only `.out` made it appear unresponsive.
 - The real bdml Stan model (BDML-LKJ-HP) fits in ~2.3s/rep on ARC
 - All 9 bdml estimators work via targets+crew on ARC
 - The full bdml pipeline completes the test scenario in 33.7 min (8 workers)
-- Calling bdml functions directly (no callr/capture.output wrapping) takes 23.7 min
-- Wrapping overhead: 42% on ARC vs 8.5% on Mac — NFS I/O is the likely cause
+- Calling bdml functions directly (bypassing outer callr + capture.output) takes 23.7 min
+- Outer wrapping overhead: 42% on ARC vs 8.5% on Mac
+- The 42% comes from removing callr (1,200 subprocess spawns) + outer capture.output
+  (10,800 calls) together — not yet isolated, but callr is likely dominant (NFS pkg loading)
+- Inner withr::with_tempdir() in BLR estimators is present in both tests — not part of
+  the measured differential, but is a separate NFS concern
 
 ## Testing Strategy
 
