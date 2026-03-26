@@ -241,6 +241,18 @@ part of the 42% differential.
   ARC vs ~8.5% on Mac. `callr` subprocess package-loading on NFS is the
   likely dominant cause.
 
+### After optimization (callr removed, withr replaced with saveAt)
+
+| Metric | Before (wrapped) | Test 15 (direct) | After (optimized) |
+|--------|-----------------|------------------|-------------------|
+| Wall clock | 33:43 | 23:46 | 24:05 |
+| CPU utilized | 3h 46m | 2h 53m | 2h 53m |
+| CPU efficiency | 84% | 91% | 90% |
+| Memory used | 4.3 GB | 2.7 GB | 3.2 GB |
+
+The optimized pipeline matches the direct-calls result. The ~42% overhead
+from callr/capture.output/withr is eliminated.
+
 **What remains to be tested:**
 - Scale to the full `main` scenario (135 grid points × 2000 reps)
 - Determine optimal worker count and batch size for production runs

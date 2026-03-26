@@ -52,6 +52,8 @@ Checking only `.out` made it appear unresponsive.
   (10,800 calls) together — not yet isolated, but callr is likely dominant (NFS pkg loading)
 - Inner withr::with_tempdir() in BLR estimators is present in both tests — not part of
   the measured differential, but is a separate NFS concern
+- After optimization (removing callr, outer capture.output, replacing withr with saveAt):
+  24:05 wall clock, 90% CPU efficiency — matches direct-calls baseline exactly
 
 ## Testing Strategy
 
