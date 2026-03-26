@@ -54,6 +54,8 @@ Checking only `.out` made it appear unresponsive.
   the measured differential, but is a separate NFS concern
 - After optimization (removing callr, outer capture.output, replacing withr with saveAt):
   24:05 wall clock, 90% CPU efficiency — matches direct-calls baseline exactly
+- Baseline scenario (p=100, 5 rho, 2000 reps, 9 estimators, 40 workers): 2h 12m wall clock,
+  86 core-hours, 81% efficiency. Rho has negligible effect on per-branch timing.
 
 ## Testing Strategy
 

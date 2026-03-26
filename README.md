@@ -253,6 +253,19 @@ part of the 42% differential.
 The optimized pipeline matches the direct-calls result. The ~42% overhead
 from callr/capture.output/withr is eliminated.
 
+### Baseline scenario (p=100, 5 rho values, 2000 reps, 9 estimators)
+
+| Metric | Value |
+|--------|-------|
+| Wall clock | 2:12:25 |
+| CPU utilized | 3d 14h 10m (86 core-hours) |
+| CPU efficiency | 81% |
+| Memory used | 14.3 GB |
+| Workers | 40 |
+| Branches | 200 (5 grid × 40 batches, 50 reps/batch) |
+| Per-branch compute | ~22.6 min |
+| Rho effect on timing | Negligible (15h 3m - 15h 8m across 5 rho values) |
+
 **What remains to be tested:**
 - Scale to the full `main` scenario (135 grid points × 2000 reps)
 - Determine optimal worker count and batch size for production runs
