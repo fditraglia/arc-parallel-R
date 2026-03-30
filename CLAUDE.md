@@ -26,7 +26,7 @@ Find the best way to run fast, reliable, parallel simulations using the bdml R p
 6. **`gfbf` toolchain = FlexiBLAS/OpenBLAS with threading** — multi-worker scripts must set `OMP_NUM_THREADS=1` and `OPENBLAS_NUM_THREADS=1` to prevent thread oversubscription
 7. **`source()` inside `tar_rep()` command body** causes per-branch serialization of the function environment — always source at top level of `_targets.R`
 8. **`tar_make_future()` is a dead end** — officially superseded (March 2025), fails silently on ARC (runs sequentially despite requesting workers). Use `tar_make()` with crew instead. `future::plan()` alone is invisible to `tar_make()`
-9. **All SLURM scripts should use `set -euo pipefail`** — a failed `module load` or `cd` will otherwise silently continue
+9. **`set -euo pipefail` is good practice for SLURM setup sections** (module load, cd, exports) — but not necessarily appropriate for the entire script if it runs multiple independent tasks sequentially
 
 ## Key Findings from bdml Debugging
 
