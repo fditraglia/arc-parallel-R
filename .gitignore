@@ -5,3 +5,4 @@ stan/iv-simple
 .Rhistory
 .RData
 *.Rout
+arc.conf

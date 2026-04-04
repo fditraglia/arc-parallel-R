@@ -4,6 +4,14 @@
 
 Find the best way to run fast, reliable, parallel simulations using the bdml R package (which fits Stan models) on Oxford's ARC HPC cluster. The parallelization strategy is an open question — targets+crew is one option but not the only one. This repo tests every common approach systematically.
 
+## ARC HPC Tools
+
+Use the `arc-*` wrapper scripts (`~/arc-tools/bin/`) for all ARC interaction —
+never construct raw SSH commands. This project has `arc.conf` configured in the
+project root. See `~/arc-tools/README.md` for full usage. Key commands:
+`arc-run`, `arc-push`, `arc-sbatch`, `arc-status`, `arc-logs`, `arc-cancel`,
+`arc-resume`, `arc-retrieve`.
+
 ## ARC Environment
 
 - **$DATA**: `/data/econ-lead-public/econ0575`
